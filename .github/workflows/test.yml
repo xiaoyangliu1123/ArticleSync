@@ -1,0 +1,35 @@
+name: Process Markdown Files
+
+on:
+  push:
+    paths:
+      - "mdFiles/*.md"
+
+jobs:
+  process-md:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository content
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10.6'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install markdown
+
+      - name: Run push.py script for each modified Markdown file
+        env:
+          CNBLOGS_BLOG_URL: ${{ secrets.CNBLOGS_BLOG_URL }}
+          CNBLOGS_BLOG_USERNAME: ${{ secrets.CNBLOGS_BLOG_USERNAME }}
+          CNBLOGS_BLOG_PASSWORD: ${{ secrets.CNBLOGS_BLOG_PASSWORD }}
+          CNBLOGS_BLOG_ID: ${{ secrets.CNBLOGS_BLOG_ID }}
+        run: |
+          for file in mdFiles/*.md; do
+            python scripts/push.py "$file"
+          done
