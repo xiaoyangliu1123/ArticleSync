@@ -3,7 +3,7 @@ name: Process Markdown Files
 on:
   push:
     paths:
-      - "mdFiles/**/*.md"
+      - "mdFiles/*.md"
 
 jobs:
   process-md:
@@ -30,24 +30,6 @@ jobs:
           CNBLOGS_BLOG_PASSWORD: ${{ secrets.CNBLOGS_BLOG_PASSWORD }}
           CNBLOGS_BLOG_ID: ${{ secrets.CNBLOGS_BLOG_ID }}
         run: |
-          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
-            git fetch --unshallow
-          fi
-
-          if git rev-parse HEAD^ >/dev/null 2>&1; then
-            previous_commit=$(git rev-parse HEAD^)
-          else
-            previous_commit=$(git hash-object -t tree /dev/null)
-          fi
-
-          current_commit=$(git rev-parse HEAD)
-          echo "Previous commit: $previous_commit"
-          echo "Current commit: $current_commit"
-          
-          for file in $(git diff --name-only $previous_commit $current_commit -- mdFiles/**/*.md); do
-            echo "Processing file: $file"
-            # Ensure the file path is correctly handled
-            file=$(echo $file | sed 's/^"//' | sed 's/"$//')
-            echo "Executing: python scripts/push.py $file"
+          for file in mdFiles/*.md; do
             python scripts/push.py "$file"
           done
