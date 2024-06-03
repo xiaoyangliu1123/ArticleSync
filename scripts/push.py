@@ -5,22 +5,13 @@ import xmlrpc.client
 from urllib.parse import urlparse
 from pathlib import Path
 import markdown  
-import argparse 
+import argparse
 
 # Read MetaWeblog API information from environment variables
 url = os.getenv('CNBLOGS_BLOG_URL')
 username = os.getenv('CNBLOGS_BLOG_USERNAME')
 password = os.getenv('CNBLOGS_BLOG_PASSWORD')
 blog_id = os.getenv('CNBLOGS_BLOG_ID')
-
-# Debug information to ensure variables are correctly read
-print(f'URL: {url}')
-print(f'Username: {username}')
-print(f'Blog ID: {blog_id}')
-
-# Ensure the URL is valid
-if not url.startswith(('http://', 'https://')):
-    raise ValueError("URL must start with 'http://' or 'https://'")
 
 server = xmlrpc.client.ServerProxy(url)
 
@@ -50,16 +41,31 @@ def process_markdown(md_path):
 
     return content
 
+def get_existing_post_id(title):
+    """Check if a post with the given title already exists and return its ID"""
+    recent_posts = server.metaWeblog.getRecentPosts(blog_id, username, password, 100)
+    for post in recent_posts:
+        if post['title'] == title:
+            return post['postid']
+    return None
+
 def publish_post(markdown_content, title, categories):
-    """Publish Markdown document to CNBlogs"""
+    """Publish or update a Markdown document to CNBlogs"""
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
     post = {
         'title': title,
         'description': html_content,
         'categories': categories,
     }
-    published = server.metaWeblog.newPost(blog_id, username, password, post, True)
-    return published
+
+    existing_post_id = get_existing_post_id(title)
+    if existing_post_id:
+        post['postid'] = existing_post_id
+        server.metaWeblog.editPost(existing_post_id, username, password, post, True)
+        return existing_post_id
+    else:
+        published = server.metaWeblog.newPost(blog_id, username, password, post, True)
+        return published
 
 def main():
     parser = argparse.ArgumentParser(description='Process and publish a markdown file.')
