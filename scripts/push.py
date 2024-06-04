@@ -49,13 +49,42 @@ def get_existing_post_id(title):
             return post['postid']
     return None
 
+def get_categories_from_publish_set(content):
+    """Extract categories from the publishSet at the end of the content"""
+    match = re.search(r'# publishSet\ncategory:(.*)', content)
+    if match:
+        categories = match.group(1).split(',')
+        return [cat.strip() for cat in categories]
+    return []
+
+def create_category_if_not_exists(category_name):
+    """Create a category if it does not exist and return its ID"""
+    categories = server.metaWeblog.getCategories(blog_id, username, password)
+    for category in categories:
+        if category['title'] == category_name:
+            return category['categoryid']
+    
+    new_category = {
+        'name': category_name,
+    }
+    category_id = server.wp.newCategory(blog_id, username, password, new_category)
+    return category_id
+
+def get_category_ids(categories):
+    """Get or create categories and return their IDs"""
+    category_ids = []
+    for category in categories:
+        category_id = create_category_if_not_exists(category)
+        category_ids.append(category_id)
+    return category_ids
+
 def publish_post(markdown_content, title, categories):
     """Publish or update a Markdown document to CNBlogs"""
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
     post = {
         'title': title,
         'description': html_content,
-        'categories': categories,
+        'categories': categories,  # Ensure we pass category names, not IDs
     }
 
     existing_post_id = get_existing_post_id(title)
@@ -79,8 +108,12 @@ def main():
     # Process the Markdown file, upload images and replace URLs
     updated_markdown = process_markdown(args.markdown_file)
 
-    # Set the categories of the post (adjust as needed)
-    categories = ["Markdown", "Tutorial"]
+    # Extract categories from publishSet
+    categories = get_categories_from_publish_set(updated_markdown)
+
+    if not categories:
+        print(f"No publishSet found in {args.markdown_file}. Skipping publication.")
+        return
 
     # Publish the post
     post_id = publish_post(updated_markdown, title, categories)

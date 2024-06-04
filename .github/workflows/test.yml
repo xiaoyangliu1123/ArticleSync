@@ -3,7 +3,7 @@ name: Process Markdown Files
 on:
   push:
     paths:
-      - "mdFiles/*.md"
+      - "mdFiles/**/*.md"
 
 jobs:
   process-md:
@@ -30,6 +30,6 @@ jobs:
           CNBLOGS_BLOG_PASSWORD: ${{ secrets.CNBLOGS_BLOG_PASSWORD }}
           CNBLOGS_BLOG_ID: ${{ secrets.CNBLOGS_BLOG_ID }}
         run: |
-          for file in mdFiles/*.md; do
+          find mdFiles -type f -name "*.md" | while read file; do
             python scripts/push.py "$file"
           done
