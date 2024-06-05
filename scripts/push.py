@@ -25,6 +25,20 @@ def upload_image(image_path):
         }
         response = server.metaWeblog.newMediaObject(blog_id, username, password, media)
         return response['url']
+    
+def get_publish_set_info(content):
+    """Extract categories and keywords from the publishSet at the end of the content"""
+    categories = []
+    keywords = ""
+    
+    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*)', content, re.DOTALL)
+    if match:
+        if match.group(1):
+            categories = [cat.strip() for cat in match.group(1).split(':')[1].split(',')]
+        if match.group(2):
+            keywords = match.group(2).split(':')[1].strip()
+    
+    return categories, keywords
 
 def process_markdown(md_path):
     """Process Markdown file, upload images, replace URLs, and remove publishSet section"""
@@ -39,13 +53,13 @@ def process_markdown(md_path):
             new_url = upload_image(image_path)
             content = content.replace(image_path, new_url)
 
-    # Extract publishSet and categories
-    categories = get_categories_from_publish_set(content)
+    # Extract publishSet information
+    categories, keywords = get_publish_set_info(content)
 
     # Remove publishSet and everything after it
-    content = re.sub(r'# publishSet\ncategory:.*', '', content, flags=re.DOTALL)
+    content = re.sub(r'# ArticleSync publishSet.*', '', content, flags=re.DOTALL)
     
-    return content, categories
+    return content.strip(), categories, keywords
 
 def get_existing_post_id(title):
     """Check if a post with the given title already exists and return its ID"""
@@ -54,14 +68,6 @@ def get_existing_post_id(title):
         if post['title'] == title:
             return post['postid']
     return None
-
-def get_categories_from_publish_set(content):
-    """Extract categories from the publishSet at the end of the content"""
-    match = re.search(r'# publishSet\ncategory:(.*)', content, re.DOTALL)
-    if match:
-        categories = match.group(1).strip().split(',')
-        return [cat.strip() for cat in categories]
-    return []
 
 def create_category_if_not_exists(category_name):
     """Create a category if it does not exist and return its ID"""
@@ -84,22 +90,27 @@ def get_category_ids(categories):
         category_ids.append(category_id)
     return category_ids
 
-def publish_post(markdown_content, title, categories):
+def publish_post(markdown_content, title, categories, keywords):
     """Publish or update a Markdown document to CNBlogs"""
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
     post = {
         'title': title,
         'description': html_content,
         'categories': categories,  # Ensure we pass category names, not IDs
+        'mt_keywords': keywords
     }
+
+    print(f"Publishing post with data: {post}")  # Debug information
 
     existing_post_id = get_existing_post_id(title)
     if existing_post_id:
         post['postid'] = existing_post_id
-        server.metaWeblog.editPost(existing_post_id, username, password, post, True)
+        result = server.metaWeblog.editPost(existing_post_id, username, password, post, True)
+        print(f"Edit post result: {result}")
         return existing_post_id
     else:
         published = server.metaWeblog.newPost(blog_id, username, password, post, True)
+        print(f"New post result: {published}")
         return published
 
 def main():
@@ -112,14 +123,14 @@ def main():
     title = markdown_file_path.stem  # Extract the file name without extension
 
     # Process the Markdown file, upload images and replace URLs
-    updated_markdown, categories = process_markdown(args.markdown_file)
+    updated_markdown, categories, keywords = process_markdown(args.markdown_file)
 
-    if not categories:
+    if not categories and not keywords:
         print(f"No publishSet found in {args.markdown_file}. Skipping publication.")
         return
 
     # Publish the post
-    post_id = publish_post(updated_markdown, title, categories)
+    post_id = publish_post(updated_markdown, title, categories, keywords)
     print(f"Post published successfully, post ID: {post_id}")
 
 if __name__ == '__main__':

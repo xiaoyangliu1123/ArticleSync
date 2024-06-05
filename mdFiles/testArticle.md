@@ -1,6 +1,7 @@
 # Test Article
 This is a test article for ArticleSync.
-Test Edit......11
+Test Edit......
 
-# publishSet
+# ArticleSync publishSet
 category:c1,c2,t1
+keywords:c#,c++,test,test1
