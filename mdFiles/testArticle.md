@@ -1,6 +1,6 @@
 # Test Article
 This is a test article for ArticleSync.
-Test Edit......
+Test Edit......11
 
 # publishSet
-category:c1,c2,c3
+category:c1,c2,t1

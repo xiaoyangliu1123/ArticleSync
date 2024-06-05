@@ -27,7 +27,7 @@ def upload_image(image_path):
         return response['url']
 
 def process_markdown(md_path):
-    """Process Markdown file, upload images and replace URLs"""
+    """Process Markdown file, upload images, replace URLs, and remove publishSet section"""
     with open(md_path, 'r', encoding='utf-8') as file:
         content = file.read()
 
@@ -39,7 +39,13 @@ def process_markdown(md_path):
             new_url = upload_image(image_path)
             content = content.replace(image_path, new_url)
 
-    return content
+    # Extract publishSet and categories
+    categories = get_categories_from_publish_set(content)
+
+    # Remove publishSet and everything after it
+    content = re.sub(r'# publishSet\ncategory:.*', '', content, flags=re.DOTALL)
+    
+    return content, categories
 
 def get_existing_post_id(title):
     """Check if a post with the given title already exists and return its ID"""
@@ -51,9 +57,9 @@ def get_existing_post_id(title):
 
 def get_categories_from_publish_set(content):
     """Extract categories from the publishSet at the end of the content"""
-    match = re.search(r'# publishSet\ncategory:(.*)', content)
+    match = re.search(r'# publishSet\ncategory:(.*)', content, re.DOTALL)
     if match:
-        categories = match.group(1).split(',')
+        categories = match.group(1).strip().split(',')
         return [cat.strip() for cat in categories]
     return []
 
@@ -106,10 +112,7 @@ def main():
     title = markdown_file_path.stem  # Extract the file name without extension
 
     # Process the Markdown file, upload images and replace URLs
-    updated_markdown = process_markdown(args.markdown_file)
-
-    # Extract categories from publishSet
-    categories = get_categories_from_publish_set(updated_markdown)
+    updated_markdown, categories = process_markdown(args.markdown_file)
 
     if not categories:
         print(f"No publishSet found in {args.markdown_file}. Skipping publication.")
