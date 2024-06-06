@@ -1,5 +1,5 @@
 # Debug
 
 # ArticleSync publishSet
-category:DEBUG
+category:DEBUG,1
 keywords:python,yaml
