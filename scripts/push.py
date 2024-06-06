@@ -90,10 +90,16 @@ def create_category_if_not_exists_wp(server, blog_id, username, password, catego
 
 def get_category_ids_wp(categories, server, blog_id, username, password):
     """Get or create categories on WordPress and return their IDs"""
+    existing_categories = server.wp.getCategories(blog_id, username, password)
+    existing_category_dict = {cat['categoryName']: cat['categoryId'] for cat in existing_categories}
+
     category_ids = []
     for category in categories:
-        category_id = create_category_if_not_exists_wp(server, blog_id, username, password, category)
-        category_ids.append(category_id)
+        if category in existing_category_dict:
+            category_ids.append(existing_category_dict[category])
+        else:
+            category_id = create_category_if_not_exists_wp(server, blog_id, username, password, category)
+            category_ids.append(category_id)
     return category_ids
 
 def create_category_if_not_exists_cn(server, blog_id, username, password, category_name):
@@ -143,26 +149,29 @@ def publish_post_cn(markdown_content, title, categories, keywords, server, blog_
 def publish_post_wp(markdown_content, title, categories, keywords, server, blog_id, username, password):
     """Publish or update a Markdown document to WordPress"""
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
-    category_ids = get_category_ids_wp(categories, server, blog_id, username, password)
+
+    # Debug: Print categories and keywords before publishing
+    print(f"Publishing post with categories: {categories} and keywords: {keywords}")
+
+    # Prepare the post dictionary
     post = {
         'title': title,
         'description': html_content,
-        'categories': category_ids,  # WordPress expects category IDs
-        'mt_keywords': keywords
+        'categories': categories,  # Pass category names directly
+        'mt_keywords': [kw.strip() for kw in keywords.split(',')]  # Convert keywords to a list and strip whitespace
     }
-
-    print(f"Publishing post with data: {post}")  # Debug information
 
     existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
     if existing_post_id:
         post['postid'] = existing_post_id
         result = server.metaWeblog.editPost(existing_post_id, username, password, post, True)
-        print(f"Edit post result: {result}")
+        print(f"Edit post result: {result}")  # Debug information
         return existing_post_id
     else:
         published = server.metaWeblog.newPost(blog_id, username, password, post, True)
-        print(f"New post result: {published}")
+        print(f"New post result: {published}")  # Debug information
         return published
+
 
 def main():
     parser = argparse.ArgumentParser(description='Process and publish a markdown file.')
