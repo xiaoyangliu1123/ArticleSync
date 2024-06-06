@@ -4,7 +4,7 @@ Test Edit......
 
 Test WordPress......
 
-Debug
+Debug1
 
 # ArticleSync publishSet
 category:c1,c2,t1

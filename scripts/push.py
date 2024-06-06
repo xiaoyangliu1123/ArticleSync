@@ -133,7 +133,7 @@ def publish_post_cn(markdown_content, title, categories, keywords, server, blog_
         'mt_keywords': keywords
     }
 
-    print(f"Publishing post with data: {post}")  # Debug information
+    print(f"Cnblogs publishing post with data: {post}")  # Debug information
 
     existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
     if existing_post_id:
@@ -151,7 +151,7 @@ def publish_post_wp(markdown_content, title, categories, keywords, server, blog_
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
 
     # Debug: Print categories and keywords before publishing
-    print(f"Publishing post with categories: {categories} and keywords: {keywords}")
+    print(f"Wordpress Publishing post with categories: {categories} and keywords: {keywords}")
 
     # Prepare the post dictionary
     post = {
