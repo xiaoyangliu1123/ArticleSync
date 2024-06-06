@@ -18,8 +18,8 @@ wordpress_username = os.getenv('WORDPRESS_BLOG_USERNAME')
 wordpress_password = os.getenv('WORDPRESS_BLOG_PASSWORD')
 wordpress_blog_id = os.getenv('WORDPRESS_BLOG_ID')
 
-cnblogs_server = xmlrpc.client.ServerProxy(cnblogs_url)
-wordpress_server = xmlrpc.client.ServerProxy(wordpress_url)
+cnblogs_server = xmlrpc.client.ServerProxy(cnblogs_url, allow_none=True)
+wordpress_server = xmlrpc.client.ServerProxy(wordpress_url, allow_none=True)
 
 def upload_image(image_path, server, blog_id, username, password):
     """Upload image to specified blog and return URL"""
