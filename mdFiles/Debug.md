@@ -2,4 +2,4 @@
 
 # ArticleSync publishSet
 category:DEBUG
-keywords:python
+keywords:python,yaml
