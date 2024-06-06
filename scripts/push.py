@@ -13,7 +13,7 @@ cnblogs_username = os.getenv('CNBLOGS_BLOG_USERNAME')
 cnblogs_password = os.getenv('CNBLOGS_BLOG_PASSWORD')
 cnblogs_blog_id = os.getenv('CNBLOGS_BLOG_ID')
 
-wordpress_url = os.getenv('WORDPRESS_BLOG_URL','https://xiaoyangliu23.wordpress.com/xmlrpc.php')
+wordpress_url = os.getenv('WORDPRESS_BLOG_URL')
 wordpress_username = os.getenv('WORDPRESS_BLOG_USERNAME')
 wordpress_password = os.getenv('WORDPRESS_BLOG_PASSWORD')
 wordpress_blog_id = os.getenv('WORDPRESS_BLOG_ID')
@@ -132,9 +132,6 @@ def publish_post_cn(markdown_content, title, categories, keywords, server, blog_
         'categories': categories,  # Ensure we pass category names, not IDs
         'mt_keywords': keywords
     }
-
-    print(f"Cnblogs publishing post with data: {post}")  # Debug information
-
     existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
     if existing_post_id:
         post['postid'] = existing_post_id
@@ -149,9 +146,6 @@ def publish_post_cn(markdown_content, title, categories, keywords, server, blog_
 def publish_post_wp(markdown_content, title, categories, keywords, server, blog_id, username, password):
     """Publish or update a Markdown document to WordPress"""
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
-
-    # Debug: Print categories and keywords before publishing
-    print(f"Wordpress Publishing post with categories: {categories} and keywords: {keywords}")
 
     # Prepare the post dictionary
     post = {

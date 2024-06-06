@@ -29,6 +29,10 @@ jobs:
           CNBLOGS_BLOG_USERNAME: ${{ secrets.CNBLOGS_BLOG_USERNAME }}
           CNBLOGS_BLOG_PASSWORD: ${{ secrets.CNBLOGS_BLOG_PASSWORD }}
           CNBLOGS_BLOG_ID: ${{ secrets.CNBLOGS_BLOG_ID }}
+          WORDPRESS_BLOG_URL: ${{ secrets.WORDPRESS_BLOG_URL }}
+          WORDPRESS_BLOG_USERNAME: ${{ secrets.WORDPRESS_BLOG_USERNAME }}
+          WORDPRESS_BLOG_PASSWORD: ${{ secrets.WORDPRESS_BLOG_PASSWORD }}
+          WORDPRESS_BLOG_ID: ${{ secrets.WORDPRESS_BLOG_ID }}
         run: |
           find mdFiles -type f -name "*.md" | while read file; do
             python scripts/push.py "$file"
