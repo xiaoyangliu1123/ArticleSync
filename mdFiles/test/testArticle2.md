@@ -1,5 +1,6 @@
 # test
 
 
-# publishSet
-category:c1
+# ArticleSync publishSet
+category:0606gogogo
+keywords:c#,c++,test,test1

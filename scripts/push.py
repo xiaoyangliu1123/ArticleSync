@@ -8,15 +8,21 @@ import markdown
 import argparse
 
 # Read MetaWeblog API information from environment variables
-url = os.getenv('CNBLOGS_BLOG_URL')
-username = os.getenv('CNBLOGS_BLOG_USERNAME')
-password = os.getenv('CNBLOGS_BLOG_PASSWORD')
-blog_id = os.getenv('CNBLOGS_BLOG_ID')
+cnblogs_url = os.getenv('CNBLOGS_BLOG_URL')
+cnblogs_username = os.getenv('CNBLOGS_BLOG_USERNAME')
+cnblogs_password = os.getenv('CNBLOGS_BLOG_PASSWORD')
+cnblogs_blog_id = os.getenv('CNBLOGS_BLOG_ID')
 
-server = xmlrpc.client.ServerProxy(url)
+wordpress_url = os.getenv('WORDPRESS_BLOG_URL')
+wordpress_username = os.getenv('WORDPRESS_BLOG_USERNAME')
+wordpress_password = os.getenv('WORDPRESS_BLOG_PASSWORD')
+wordpress_blog_id = os.getenv('WORDPRESS_BLOG_ID')
 
-def upload_image(image_path):
-    """Upload image to CNBlogs and return URL"""
+cnblogs_server = xmlrpc.client.ServerProxy(cnblogs_url)
+wordpress_server = xmlrpc.client.ServerProxy(wordpress_url)
+
+def upload_image(image_path, server, blog_id, username, password):
+    """Upload image to specified blog and return URL"""
     with open(image_path, 'rb') as img:
         media = {
             'name': Path(image_path).name,
@@ -40,7 +46,7 @@ def get_publish_set_info(content):
     
     return categories, keywords
 
-def process_markdown(md_path):
+def process_markdown(md_path, server, blog_id, username, password):
     """Process Markdown file, upload images, replace URLs, and remove publishSet section"""
     with open(md_path, 'r', encoding='utf-8') as file:
         content = file.read()
@@ -50,7 +56,7 @@ def process_markdown(md_path):
     for image_path in images:
         if urlparse(image_path).scheme == '':
             # Only process local images
-            new_url = upload_image(image_path)
+            new_url = upload_image(image_path, server, blog_id, username, password)
             content = content.replace(image_path, new_url)
 
     # Extract publishSet information
@@ -61,7 +67,7 @@ def process_markdown(md_path):
     
     return content.strip(), categories, keywords
 
-def get_existing_post_id(title):
+def get_existing_post_id(title, server, blog_id, username, password):
     """Check if a post with the given title already exists and return its ID"""
     recent_posts = server.metaWeblog.getRecentPosts(blog_id, username, password, 100)
     for post in recent_posts:
@@ -69,8 +75,29 @@ def get_existing_post_id(title):
             return post['postid']
     return None
 
-def create_category_if_not_exists(category_name):
-    """Create a category if it does not exist and return its ID"""
+def create_category_if_not_exists_wp(server, blog_id, username, password, category_name):
+    """Create a category if it does not exist on WordPress and return its ID"""
+    categories = server.wp.getCategories(blog_id, username, password)
+    for category in categories:
+        if category['categoryName'] == category_name:
+            return category['categoryId']
+    
+    new_category = {
+        'name': category_name,
+    }
+    category_id = server.wp.newCategory(blog_id, username, password, new_category)
+    return category_id
+
+def get_category_ids_wp(categories, server, blog_id, username, password):
+    """Get or create categories on WordPress and return their IDs"""
+    category_ids = []
+    for category in categories:
+        category_id = create_category_if_not_exists_wp(server, blog_id, username, password, category)
+        category_ids.append(category_id)
+    return category_ids
+
+def create_category_if_not_exists_cn(server, blog_id, username, password, category_name):
+    """Create a category if it does not exist on CNBlogs and return its ID"""
     categories = server.metaWeblog.getCategories(blog_id, username, password)
     for category in categories:
         if category['title'] == category_name:
@@ -82,15 +109,15 @@ def create_category_if_not_exists(category_name):
     category_id = server.wp.newCategory(blog_id, username, password, new_category)
     return category_id
 
-def get_category_ids(categories):
-    """Get or create categories and return their IDs"""
+def get_category_ids_cn(categories, server, blog_id, username, password):
+    """Get or create categories on CNBlogs and return their IDs"""
     category_ids = []
     for category in categories:
-        category_id = create_category_if_not_exists(category)
+        category_id = create_category_if_not_exists_cn(server, blog_id, username, password, category)
         category_ids.append(category_id)
     return category_ids
 
-def publish_post(markdown_content, title, categories, keywords):
+def publish_post_cn(markdown_content, title, categories, keywords, server, blog_id, username, password):
     """Publish or update a Markdown document to CNBlogs"""
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
     post = {
@@ -102,7 +129,31 @@ def publish_post(markdown_content, title, categories, keywords):
 
     print(f"Publishing post with data: {post}")  # Debug information
 
-    existing_post_id = get_existing_post_id(title)
+    existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
+    if existing_post_id:
+        post['postid'] = existing_post_id
+        result = server.metaWeblog.editPost(existing_post_id, username, password, post, True)
+        print(f"Edit post result: {result}")
+        return existing_post_id
+    else:
+        published = server.metaWeblog.newPost(blog_id, username, password, post, True)
+        print(f"New post result: {published}")
+        return published
+
+def publish_post_wp(markdown_content, title, categories, keywords, server, blog_id, username, password):
+    """Publish or update a Markdown document to WordPress"""
+    html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
+    category_ids = get_category_ids_wp(categories, server, blog_id, username, password)
+    post = {
+        'title': title,
+        'description': html_content,
+        'categories': category_ids,  # WordPress expects category IDs
+        'mt_keywords': keywords
+    }
+
+    print(f"Publishing post with data: {post}")  # Debug information
+
+    existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
     if existing_post_id:
         post['postid'] = existing_post_id
         result = server.metaWeblog.editPost(existing_post_id, username, password, post, True)
@@ -122,16 +173,13 @@ def main():
     markdown_file_path = Path(args.markdown_file)
     title = markdown_file_path.stem  # Extract the file name without extension
 
-    # Process the Markdown file, upload images and replace URLs
-    updated_markdown, categories, keywords = process_markdown(args.markdown_file)
-
-    if not categories and not keywords:
-        print(f"No publishSet found in {args.markdown_file}. Skipping publication.")
-        return
-
-    # Publish the post
-    post_id = publish_post(updated_markdown, title, categories, keywords)
-    print(f"Post published successfully, post ID: {post_id}")
+    # Process and publish to CNBlogs
+    updated_markdown_cn, categories_cn, keywords_cn = process_markdown(args.markdown_file, cnblogs_server, cnblogs_blog_id, cnblogs_username, cnblogs_password)
+    publish_post_cn(updated_markdown_cn, title, categories_cn, keywords_cn, cnblogs_server, cnblogs_blog_id, cnblogs_username, cnblogs_password)
+    
+    # Process and publish to WordPress
+    updated_markdown_wp, categories_wp, keywords_wp = process_markdown(args.markdown_file, wordpress_server, wordpress_blog_id, wordpress_username, wordpress_password)
+    publish_post_wp(updated_markdown_wp, title, categories_wp, keywords_wp, wordpress_server, wordpress_blog_id, wordpress_username, wordpress_password)
 
 if __name__ == '__main__':
     main()
