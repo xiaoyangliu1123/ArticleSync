@@ -38,7 +38,7 @@ def get_publish_set_info(content):
     keywords = ""
     delete_flag = False
     
-    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*)(\ndelete:true)?', content, re.DOTALL)
+    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*)(\ndelete:(true|false))?', content, re.DOTALL | re.IGNORECASE)
     if match:
         if match.group(1):
             categories = [cat.strip() for cat in match.group(1).split(':')[1].split(',')]
@@ -48,7 +48,6 @@ def get_publish_set_info(content):
             delete_flag = True
     
     return categories, keywords, delete_flag
-
 
 def process_markdown(md_path, server, blog_id, username, password):
     """Process Markdown file, upload images, replace URLs, and remove publishSet section"""
@@ -70,7 +69,6 @@ def process_markdown(md_path, server, blog_id, username, password):
     content = re.sub(r'# ArticleSync publishSet.*', '', content, flags=re.DOTALL)
     
     return content.strip(), categories, keywords, delete_flag
-
 
 def get_existing_post_id(title, server, blog_id, username, password):
     """Check if a post with the given title already exists and return its ID"""
@@ -130,14 +128,15 @@ def get_category_ids_cn(categories, server, blog_id, username, password):
 
 def delete_post_cn(post_id, server, username, password):
     """Delete a post from CNBlogs"""
-    result = server.metaWeblog.deletePost('', post_id, username, password, True)
+    result = server.blogger.deletePost('', post_id, username, password, True)
     print(f"Delete post result: {result}")
     return result
 
 def publish_post_cn(markdown_content, title, categories, keywords, delete_flag, server, blog_id, username, password):
     """Publish or update a Markdown document to CNBlogs"""
+    existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
+    
     if delete_flag:
-        existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
         if existing_post_id:
             delete_post_cn(existing_post_id, server, username, password)
         return
@@ -149,17 +148,14 @@ def publish_post_cn(markdown_content, title, categories, keywords, delete_flag, 
         'categories': categories,  # Ensure we pass category names, not IDs
         'mt_keywords': keywords
     }
-    existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
+    
     if existing_post_id:
         post['postid'] = existing_post_id
         result = server.metaWeblog.editPost(existing_post_id, username, password, post, True)
-        print(f"Edit post result: {result}")
         return existing_post_id
     else:
         published = server.metaWeblog.newPost(blog_id, username, password, post, True)
-        print(f"New post result: {published}")
         return published
-
 
 def delete_post_wp(post_id, server, username, password):
     """Delete a post from WordPress"""
@@ -169,8 +165,9 @@ def delete_post_wp(post_id, server, username, password):
 
 def publish_post_wp(markdown_content, title, categories, keywords, delete_flag, server, blog_id, username, password):
     """Publish or update a Markdown document to WordPress"""
+    existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
+    
     if delete_flag:
-        existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
         if existing_post_id:
             delete_post_wp(existing_post_id, server, username, password)
         return
@@ -184,18 +181,14 @@ def publish_post_wp(markdown_content, title, categories, keywords, delete_flag, 
         'categories': categories,  # Pass category names directly
         'mt_keywords': [kw.strip() for kw in keywords.split(',')]  # Convert keywords to a list and strip whitespace
     }
-
-    existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
+    
     if existing_post_id:
         post['postid'] = existing_post_id
         result = server.metaWeblog.editPost(existing_post_id, username, password, post, True)
-        print(f"Edit post result: {result}")  # Debug information
         return existing_post_id
     else:
         published = server.metaWeblog.newPost(blog_id, username, password, post, True)
-        print(f"New post result: {published}")  # Debug information
         return published
-
 
 def main():
     parser = argparse.ArgumentParser(description='Process and publish a markdown file.')
