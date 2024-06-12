@@ -37,14 +37,15 @@ def get_publish_set_info(content):
     categories = []
     keywords = ""
     delete_flag = False
-    
-    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*)(\ndelete:(true|false))?', content, re.DOTALL | re.IGNORECASE)
+
+    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*\n)(delete:.*)?', content, re.DOTALL | re.IGNORECASE)
+
     if match:
         if match.group(1):
             categories = [cat.strip() for cat in match.group(1).split(':')[1].split(',')]
         if match.group(2):
             keywords = match.group(2).split(':')[1].strip()
-        if match.group(3) and match.group(4).strip().lower() == 'true':
+        if match.group(3):
             delete_flag = True
     
     return categories, keywords, delete_flag
@@ -129,7 +130,7 @@ def get_category_ids_cn(categories, server, blog_id, username, password):
 def delete_post_cn(post_id, server, username, password):
     """Delete a post from CNBlogs"""
     result = server.blogger.deletePost('', post_id, username, password, True)
-    print(f"Delete post result: {result}")
+    print(f"CNBlogs Delete post result: {result}")
     return result
 
 def publish_post_cn(markdown_content, title, categories, keywords, delete_flag, server, blog_id, username, password):
@@ -160,7 +161,7 @@ def publish_post_cn(markdown_content, title, categories, keywords, delete_flag, 
 def delete_post_wp(post_id, server, username, password):
     """Delete a post from WordPress"""
     result = server.metaWeblog.deletePost('', post_id, username, password, True)
-    print(f"Delete post result: {result}")
+    print(f"Wordpress Delete post result: {result}")
     return result
 
 def publish_post_wp(markdown_content, title, categories, keywords, delete_flag, server, blog_id, username, password):
