@@ -33,18 +33,22 @@ def upload_image(image_path, server, blog_id, username, password):
         return response['url']
     
 def get_publish_set_info(content):
-    """Extract categories and keywords from the publishSet at the end of the content"""
+    """Extract categories, keywords, and delete flag from the publishSet at the end of the content"""
     categories = []
     keywords = ""
+    delete_flag = False
     
-    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*)', content, re.DOTALL)
+    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*)(\ndelete:true)?', content, re.DOTALL)
     if match:
         if match.group(1):
             categories = [cat.strip() for cat in match.group(1).split(':')[1].split(',')]
         if match.group(2):
             keywords = match.group(2).split(':')[1].strip()
+        if match.group(3) and match.group(4).strip().lower() == 'true':
+            delete_flag = True
     
-    return categories, keywords
+    return categories, keywords, delete_flag
+
 
 def process_markdown(md_path, server, blog_id, username, password):
     """Process Markdown file, upload images, replace URLs, and remove publishSet section"""
@@ -60,12 +64,13 @@ def process_markdown(md_path, server, blog_id, username, password):
             content = content.replace(image_path, new_url)
 
     # Extract publishSet information
-    categories, keywords = get_publish_set_info(content)
+    categories, keywords, delete_flag = get_publish_set_info(content)
 
     # Remove publishSet and everything after it
     content = re.sub(r'# ArticleSync publishSet.*', '', content, flags=re.DOTALL)
     
-    return content.strip(), categories, keywords
+    return content.strip(), categories, keywords, delete_flag
+
 
 def get_existing_post_id(title, server, blog_id, username, password):
     """Check if a post with the given title already exists and return its ID"""
@@ -123,8 +128,20 @@ def get_category_ids_cn(categories, server, blog_id, username, password):
         category_ids.append(category_id)
     return category_ids
 
-def publish_post_cn(markdown_content, title, categories, keywords, server, blog_id, username, password):
+def delete_post_cn(post_id, server, username, password):
+    """Delete a post from CNBlogs"""
+    result = server.metaWeblog.deletePost('', post_id, username, password, True)
+    print(f"Delete post result: {result}")
+    return result
+
+def publish_post_cn(markdown_content, title, categories, keywords, delete_flag, server, blog_id, username, password):
     """Publish or update a Markdown document to CNBlogs"""
+    if delete_flag:
+        existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
+        if existing_post_id:
+            delete_post_cn(existing_post_id, server, username, password)
+        return
+    
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
     post = {
         'title': title,
@@ -143,8 +160,21 @@ def publish_post_cn(markdown_content, title, categories, keywords, server, blog_
         print(f"New post result: {published}")
         return published
 
-def publish_post_wp(markdown_content, title, categories, keywords, server, blog_id, username, password):
+
+def delete_post_wp(post_id, server, username, password):
+    """Delete a post from WordPress"""
+    result = server.metaWeblog.deletePost('', post_id, username, password, True)
+    print(f"Delete post result: {result}")
+    return result
+
+def publish_post_wp(markdown_content, title, categories, keywords, delete_flag, server, blog_id, username, password):
     """Publish or update a Markdown document to WordPress"""
+    if delete_flag:
+        existing_post_id = get_existing_post_id(title, server, blog_id, username, password)
+        if existing_post_id:
+            delete_post_wp(existing_post_id, server, username, password)
+        return
+    
     html_content = markdown.markdown(markdown_content)  # Convert Markdown to HTML
 
     # Prepare the post dictionary
@@ -177,12 +207,12 @@ def main():
     title = markdown_file_path.stem  # Extract the file name without extension
 
     # Process and publish to CNBlogs
-    updated_markdown_cn, categories_cn, keywords_cn = process_markdown(args.markdown_file, cnblogs_server, cnblogs_blog_id, cnblogs_username, cnblogs_password)
-    publish_post_cn(updated_markdown_cn, title, categories_cn, keywords_cn, cnblogs_server, cnblogs_blog_id, cnblogs_username, cnblogs_password)
+    updated_markdown_cn, categories_cn, keywords_cn, delete_flag_cn = process_markdown(args.markdown_file, cnblogs_server, cnblogs_blog_id, cnblogs_username, cnblogs_password)
+    publish_post_cn(updated_markdown_cn, title, categories_cn, keywords_cn, delete_flag_cn, cnblogs_server, cnblogs_blog_id, cnblogs_username, cnblogs_password)
     
     # Process and publish to WordPress
-    updated_markdown_wp, categories_wp, keywords_wp = process_markdown(args.markdown_file, wordpress_server, wordpress_blog_id, wordpress_username, wordpress_password)
-    publish_post_wp(updated_markdown_wp, title, categories_wp, keywords_wp, wordpress_server, wordpress_blog_id, wordpress_username, wordpress_password)
+    updated_markdown_wp, categories_wp, keywords_wp, delete_flag_wp = process_markdown(args.markdown_file, wordpress_server, wordpress_blog_id, wordpress_username, wordpress_password)
+    publish_post_wp(updated_markdown_wp, title, categories_wp, keywords_wp, delete_flag_wp, wordpress_server, wordpress_blog_id, wordpress_username, wordpress_password)
 
 if __name__ == '__main__':
     main()
