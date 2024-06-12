@@ -38,7 +38,7 @@ def get_publish_set_info(content):
     keywords = ""
     delete_flag = False
 
-    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*\n)(delete:.*)?', content, re.DOTALL | re.IGNORECASE)
+    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*\n)(delete)?', content, re.DOTALL | re.IGNORECASE)
 
     if match:
         if match.group(1):
