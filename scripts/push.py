@@ -38,13 +38,14 @@ def get_publish_set_info(content):
     keywords = ""
     delete_flag = False
 
-    match = re.search(r'# ArticleSync publishSet\n(category:.*\n)?(keywords:.*\n)(delete)?', content, re.DOTALL | re.IGNORECASE)
+    pattern = r'# ArticleSync publishSet\n(?:category:([^,\n]+(?:,[^,\n]+)*)\n?)?(?:keywords:([^\n]*)\n?)?(delete)?'
+    match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
 
     if match:
         if match.group(1):
-            categories = [cat.strip() for cat in match.group(1).split(':')[1].split(',')]
+            categories = [cat.strip() for cat in match.group(1).split(',')]
         if match.group(2):
-            keywords = match.group(2).split(':')[1].strip()
+            keywords = match.group(2).strip()
         if match.group(3):
             delete_flag = True
     
